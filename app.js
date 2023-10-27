@@ -2,7 +2,14 @@
 const express = require("express");
 const dbConn = require("./Config/dbConfig");
 const filmSchema = require("./modeles/film");
+const userSchema = require("./modeles/user");
+const bcrypt = require("bcrypt")
+const jwt = require("jsonwebtoken")
+  
+    
+
 var cors = require('cors');
+
 
 //Define port number and express module
 const port = 5000;
@@ -16,8 +23,65 @@ app.use(cors())
 
 dbConn();
 
+// --------------------------------------------------------------------------------------
+// realted to login
 
 
+// login-----------------------
+app.post("/login", (req, res) => {
+  const { email, password } = req.body;
+
+  userSchema.findOne({ email }).then((chekedUser) => {
+    if (chekedUser) {
+      bcrypt.compare(password, chekedUser.password, function (err, result) {
+
+        if (result) {
+          const token = jwt.sign( {id:chekedUser._id }, 'thisisakey');
+          res.status(200).send({token:token})
+        }else{
+          res.status(401).send("Check your password");
+        }
+       
+      });
+    } else {
+      res.status(400).send("try to register first or check your email");
+    }
+  });
+});
+
+
+// register---------------------------------------
+app.post("/register", (req, res) => {
+  const { email, password } = req.body;
+
+  userSchema.findOne({ email }).then((checkedUser) => {
+    console.log(checkedUser);
+    if (checkedUser) {
+      res.status(200).send("email already used !");
+    } else {
+      const newUser = new userSchema(req.body);
+
+      const saltRounds = 10;
+      bcrypt.genSalt(saltRounds, function (err, salt) {
+        bcrypt.hash(password, salt, function (err, hash) {
+          newUser.password = hash;
+          newUser.save()
+            .then((result) => {
+              res.status(200).send(result);
+            })
+            .catch((error) => {
+              res.status(500).send("unable to register user");
+              console.log(error);
+            });
+        });
+      });
+    }
+  });
+});
+
+
+
+// --------------------------------------------------------------------------------------------
 // app.get("/getFilm", async (req, res) => {
 //   try {
 //     const Film = await filmSchema.find();
